@@ -1,0 +1,93 @@
+% run_lab2.m
+% A single script to solve for the orthogonal projection of functions.
+% This file includes the main script and its required local functions.
+
+function run_lab2()
+    % --- Main Script Section ---
+    clear; clc; close all;
+
+    %% Setup
+    % Define the interval and the number of nodal points.
+    N_nodes = 21;
+    x = linspace(0, 1, N_nodes)'; % Column vector of nodal points
+
+    % Define the functions to be projected using anonymous functions
+    f1 = @(x) x.^2;
+    f2 = @(x) 3*sin(2*pi*x);
+
+    %% Assembly and Solution
+    % Call the local functions defined at the end of this file.
+    M = mass_assembler(x);
+
+    % ---- (a) For f(x) = x^2 ----
+    b1 = load_assembler(x, f1);
+    e1 = M \ b1; % Solve the system M*e1 = b1
+
+    % ---- (b) For f(x) = 3sin(2*pi*x) ----
+    b2 = load_assembler(x, f2);
+    e2 = M \ b2; % Solve the system M*e2 = b2
+
+    %% Results Tabulation
+    fprintf('--- Results for f(x) = x^2 ---\n');
+    table1 = table(x, f1(x), e1, 'VariableNames', {'Node_x', 'Original_f1_Value', 'Projected_Value'});
+    disp(table1);
+
+    fprintf('\n--- Results for f(x) = 3*sin(2*pi*x) ---\n');
+    table2 = table(x, f2(x), e2, 'VariableNames', {'Node_x', 'Original_f2_Value', 'Projected_Value'});
+    disp(table2);
+
+    %% Results Plotting
+    % Plot for f(x) = x^2
+    figure;
+    plot(x, f1(x), 'b-o', 'LineWidth', 2, 'DisplayName', 'Original f(x) = x^2');
+    hold on;
+    plot(x, e1, 'r--s', 'LineWidth', 2, 'DisplayName', 'Orthogonal Projection');
+    grid on;
+    title('Orthogonal Projection of f(x) = x^2');
+    xlabel('x');
+    ylabel('f(x)');
+    legend('show');
+
+    % Plot for f(x) = 3sin(2*pi*x)
+    figure;
+    plot(x, f2(x), 'b-o', 'LineWidth', 2, 'DisplayName', 'Original f(x) = 3sin(2\pi x)');
+    hold on;
+    plot(x, e2, 'r--s', 'LineWidth', 2, 'DisplayName', 'Orthogonal Projection');
+    grid on;
+    title('Orthogonal Projection of f(x) = 3sin(2\pi x)');
+    xlabel('x');
+    ylabel('f(x)');
+    legend('show');
+end
+
+
+% --- Local Functions Section ---
+% These functions are only accessible by the main run_lab2 function above.
+
+function M = mass_assembler(x)
+    % Assembles the global mass matrix M for 1D linear elements.
+    n_nodes = length(x);
+    n_elements = n_nodes - 1;
+    M = zeros(n_nodes, n_nodes);
+
+    for i = 1:n_elements
+        h = x(i+1) - x(i);
+        M(i, i)     = M(i, i)     + 2*h/6;
+        M(i, i+1)   = M(i, i+1)   + 1*h/6;
+        M(i+1, i)   = M(i+1, i)   + 1*h/6;
+        M(i+1, i+1) = M(i+1, i+1) + 2*h/6;
+    end
+end
+
+function b = load_assembler(x, f)
+    % Assembles the global load vector b for 1D linear elements.
+    n_nodes = length(x);
+    n_elements = n_nodes - 1;
+    b = zeros(n_nodes, 1);
+
+    for i = 1:n_elements
+        h = x(i+1) - x(i);
+        b(i)   = b(i)   + f(x(i)) * h/2;
+        b(i+1) = b(i+1) + f(x(i+1)) * h/2;
+    end
+end
