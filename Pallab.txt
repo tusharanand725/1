@@ -1,0 +1,105 @@
+% ============================================================
+% L2 ORTHOGONAL PROJECTION USING ASSEMBLY METHOD (MATLAB)
+% Multiple mesh refinements: [2,4,8,16] elements
+% ============================================================
+clear; clc;
+
+% === USER INPUTS ===
+a = 0;                 % interval start
+b = 1;                 % interval end
+nelems_list = [2,4,8,16];   % same as LAB 1
+f1 = @(x) 3*sin(2*pi*x);   % Function (i)
+f2 = @(x) (x.^2);      % Function (ii)
+% ============================================================
+
+for nelem = nelems_list
+    fprintf('\n============================================================\n');
+    fprintf('   Results for nelem = %d (N = %d nodes)\n', nelem, nelem+1);
+    fprintf('============================================================\n');
+    
+    % Mesh
+    N = nelem + 1;
+    xs = linspace(a, b, N)';
+    h = xs(2) - xs(1);
+    
+    % Initialize global matrices
+    M = zeros(N,N);
+    bvec1 = zeros(N,1);
+    bvec2 = zeros(N,1);
+    
+    % Local element mass matrix
+    Mloc = (h/6) * [2 1; 1 2];
+    
+    % Gauss quadrature (2-point on [-1,1])
+    xi = [-1/sqrt(3), 1/sqrt(3)];
+    w  = [1, 1];
+    
+    % === ASSEMBLY LOOP ===
+    for e = 1:N-1
+        i = e; j = e+1;
+        
+        % Assemble local mass matrix
+        % Assemble local mass matrix
+        M(i:i+1, i:i+1) = M(i:i+1, i:i+1) + Mloc;
+        
+        % Local load vectors for f1 and f2
+        bl1 = zeros(2,1);
+        bl2 = zeros(2,1);
+        
+        xL = xs(e); xR = xs(e+1);
+        
+        for k = 1:2
+            xk = 0.5*(xL+xR) + 0.5*(xR-xL)*xi(k); % mapped point
+            phi0 = (xR - xk)/h;
+            phi1 = (xk - xL)/h;
+            
+            % function values
+            val1 = f1(xk);
+            val2 = f2(xk);
+            
+            bl1(1) = bl1(1) + w(k)*val1*phi0;
+            bl1(2) = bl1(2) + w(k)*val1*phi1;
+            
+            bl2(1) = bl2(1) + w(k)*val2*phi0;
+            bl2(2) = bl2(2) + w(k)*val2*phi1;
+        end
+        
+        bl1 = bl1 * (h/2);
+        bl2 = bl2 * (h/2);
+        
+        bvec1(i) = bvec1(i) + bl1(1);
+        bvec1(j) = bvec1(j) + bl1(2);
+        
+        bvec2(i) = bvec2(i) + bl2(1);
+        bvec2(j) = bvec2(j) + bl2(2);
+    end
+    
+    % === Solve systems ===
+    c1 = M \ bvec1;   % coefficients for f1 projection
+    c2 = M \ bvec2;   % coefficients for f2 projection
+    
+    % Projection values at nodes are just coefficients
+    Ph_f1_at_nodes = c1;
+    Ph_f2_at_nodes = c2;
+    
+    % === OUTPUT TABLE ===
+    fprintf('   Node   x_j          P_h f1(x_j)        P_h f2(x_j)\n');
+    for i = 1:N
+        fprintf('%5d   %8.5f   %16.8e   %16.8e\n', ...
+            i-1, xs(i), Ph_f1_at_nodes(i), Ph_f2_at_nodes(i));
+    end
+    
+    % Optional: plot comparison
+    figure;
+    subplot(1,2,1);
+    plot(xs, f1(xs), 'r-', 'LineWidth',1.5); hold on;
+    plot(xs, Ph_f1_at_nodes, 'bo--','LineWidth',1.5);
+    legend('f1','Projection'); 
+    title(sprintf('f1, nelem=%d',nelem)); grid on;
+    
+    subplot(1,2,2);
+    plot(xs, f2(xs), 'r-', 'LineWidth',1.5); hold on;
+    plot(xs, Ph_f2_at_nodes, 'bo--','LineWidth',1.5);
+    legend('f2','Projection'); 
+    title(sprintf('f2, nelem=%d',nelem)); grid on;
+end

@@ -1,0 +1,103 @@
+% run_lab_comparison.m
+% Solves for and compares the Linear Interpolant and the Orthogonal Projection.
+
+function run_lab_comparison()
+    % --- Main Script Section ---
+    clear; clc; close all;
+
+    %% Setup
+    % Using 11 nodes (10 subintervals) to clearly see the differences.
+    N_nodes = 11;
+    x_nodes = linspace(0, 1, N_nodes)'; % Column vector for our discrete nodes
+
+    % Define the functions
+    f1 = @(x) x.^2;
+    f2 = @(x) 3*sin(2*pi*x);
+
+    %% --- Calculations for f(x) = x^2 ---
+
+    % 1. Linear Interpolant Nodal Values
+    % By definition, these are just the function's values at the nodes.
+    y1_interpolant = f1(x_nodes);
+
+    % 2. Orthogonal Projection Nodal Values (using assembly method)
+    M = mass_assembler(x_nodes);
+    b1 = load_assembler(x_nodes, f1);
+    e1_projection = M \ b1; % Solve M*e = b
+
+    %% --- Calculations for f(x) = 3*sin(2*pi*x) ---
+
+    % 1. Linear Interpolant Nodal Values
+    y2_interpolant = f2(x_nodes);
+
+    % 2. Orthogonal Projection Nodal Values
+    % The mass matrix M is the same, so we don't need to re-calculate it.
+    b2 = load_assembler(x_nodes, f2);
+    e2_projection = M \ b2;
+
+    %% --- Results Tabulation and Comparison ---
+
+    fprintf('--- Comparison for f(x) = x^2 ---\n');
+    table1 = table(x_nodes, y1_interpolant, e1_projection, 'VariableNames', {'Node_x', 'Interpolant_Value', 'Projection_Value'});
+    disp(table1);
+
+    fprintf('\n--- Comparison for f(x) = 3*sin(2*pi*x) ---\n');
+    table2 = table(x_nodes, y2_interpolant, e2_projection, 'VariableNames', {'Node_x', 'Interpolant_Value', 'Projection_Value'});
+    disp(table2);
+
+    %% --- Results Plotting and Comparison ---
+
+    % Create a finer set of x-points for plotting the smooth original function
+    x_fine = linspace(0, 1, 201)';
+
+    % Plot for f(x) = x^2
+    figure;
+    plot(x_fine, f1(x_fine), 'b', 'LineWidth', 2, 'DisplayName', 'Original f(x)');
+    hold on;
+    plot(x_nodes, y1_interpolant, 'g--o', 'LineWidth', 1.5, 'DisplayName', 'Linear Interpolant');
+    plot(x_nodes, e1_projection, 'r:s', 'LineWidth', 1.5, 'DisplayName', 'Orthogonal Projection');
+    grid on;
+    title('Comparison for f(x) = x^2');
+    xlabel('x');
+    ylabel('f(x)');
+    legend('show', 'Location', 'northwest');
+
+    % Plot for f(x) = 3sin(2*pi*x)
+    figure;
+    plot(x_fine, f2(x_fine), 'b', 'LineWidth', 2, 'DisplayName', 'Original f(x)');
+    hold on;
+    plot(x_nodes, y2_interpolant, 'g--o', 'LineWidth', 1.5, 'DisplayName', 'Linear Interpolant');
+    plot(x_nodes, e2_projection, 'r:s', 'LineWidth', 1.5, 'DisplayName', 'Orthogonal Projection');
+    grid on;
+    title('Comparison for f(x) = 3sin(2\pi x)');
+    xlabel('x');
+    ylabel('f(x)');
+    legend('show');
+
+end
+
+% --- Local Functions Section (Assembly Method) ---
+
+function M = mass_assembler(x)
+    % Assembles the global mass matrix M for 1D linear elements.
+    n_nodes = length(x);
+    M = spalloc(n_nodes, n_nodes, 3*n_nodes); % Use sparse for efficiency
+    for i = 1:n_nodes-1
+        h = x(i+1) - x(i);
+        M(i, i)     = M(i, i)     + 2*h/6;
+        M(i, i+1)   = M(i, i+1)   + 1*h/6;
+        M(i+1, i)   = M(i+1, i)   + 1*h/6;
+        M(i+1, i+1) = M(i+1, i+1) + 2*h/6;
+    end
+end
+
+function b = load_assembler(x, f)
+    % Assembles the global load vector b for 1D linear elements.
+    n_nodes = length(x);
+    b = zeros(n_nodes, 1);
+    for i = 1:n_nodes-1
+        h = x(i+1) - x(i);
+        b(i)   = b(i)   + f(x(i)) * h/2;
+        b(i+1) = b(i+1) + f(x(i+1)) * h/2;
+    end
+end
